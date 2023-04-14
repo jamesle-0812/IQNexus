@@ -593,6 +593,29 @@ STATIC_ASSERT((sizeof(MEMBER(sht30_payload_t,members)) == SHT30_SIZE));
 
 /****************************************************************************/
 
+#define SPS30_SIZE 12
+typedef union
+{
+	uint8_t payload[SPS30_SIZE];
+	struct
+	{
+		uint16_t	MassCon_PM1p0;
+		uint16_t	MassCon_PM2p5;
+		uint16_t	MassCon_PM4p0;
+		uint16_t	MassCon_PM10;
+		uint32_t
+			TempAve			:12,
+			HumidAve			:10,
+			status			:2;
+		uint8_t
+		    sys_voltage	:4,
+			pkt_type	:4;
+	}PACKED members;
+}sps30_payload_t;
+STATIC_ASSERT((sizeof(MEMBER(sps30_payload_t,members)) == SPS30_SIZE));
+
+/****************************************************************************/
+
 #define TWO_IO_SIZE 6
 typedef union
 {

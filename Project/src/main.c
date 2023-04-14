@@ -96,6 +96,7 @@ Maintainer: Miguel Luis, Gregory Cristian and Wael Guibene
 
 #include "sigfox_sensum.h"
 #include "radio_common.h"
+#include "sps30.h"
 
 
 #ifndef DISABLE_ALARM_DEBUG
@@ -601,6 +602,29 @@ sensum_device_callback_t device_modes[] =
 		.legacy_counter            =legacy_counters_enabled,
 		.lora_class_c              =false,
 		.cli_commands              = 0,
+	},  
+
+	{//20		SPS30                       
+		.on_each_wakeup            =&no_action,
+		.on_scheduled_wakeup       =&sps30_onWakeup,
+		.on_hourly_alarm           =&no_action,
+		.on_hourly_alarm_interrupt =&no_action,
+		.on_count_wakeup           =&no_action,
+		.on_alarm                  =&no_action,
+		.init                      =&no_action,//SHT20 and SHT30 have no init
+		.test_peripheral           =&no_test,//as it is not requred
+		.send_data                 =&sps30_uplink,
+		.on_downlink               =&no_downlink_action,
+		.save_config               =&sps30_save_config,
+		.save_data                 =&no_action,
+		.load_config               =&sps30_load_config,
+		.load_data                 =&no_action,
+		.cli_set_thresholds        =&sps30_cli_threshold,
+		.cli_device_specific       =&no_cli,
+		.mode_name                 ="SPS30",
+		.legacy_counter            =legacy_counters_enabled,
+		.lora_class_c              =false,
+		.cli_commands              = cmd_thresholds,
 	},  
 };
 

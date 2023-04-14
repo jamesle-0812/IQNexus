@@ -133,6 +133,34 @@ typedef union
 	uint8_t raw_bytes[PAGE_SIZE];
 	struct
 	{
+		uint16_t humidity_threshold_upper;
+		uint16_t humidity_thredhold_lower;
+		int16_t  temperature_threshold_upper;
+		int16_t  temperature_threshold_lower;
+		uint16_t	mass_concentration_threshold_upper;
+		uint16_t	mass_concentration_threshold_lower;
+		uint32_t	auto_cleaning_time;
+		uint8_t
+			humidity_upper_enabled    :1,
+			humidity_lower_enabled    :1,
+			temperature_upper_enabled :1,
+			temperature_lower_enabled :1,
+			mass_concentration_upper_enabled	:1,
+			mass_concentration_lower_enabled	:1,
+			reserved                  :2;
+		uint8_t threshold_wakeups;
+		uint8_t reserved2[PAGE_SIZE-18];
+	}PACKED members;
+	
+}sps30_config_page_layout_t;
+
+STATIC_ASSERT((sizeof(MEMBER(sps30_config_page_layout_t,members)) == PAGE_SIZE));
+
+typedef union
+{
+	uint8_t raw_bytes[PAGE_SIZE];
+	struct
+	{
 		modbus_register_t     modbus_slots[8];              //03 bytes  total 3
 		uint16_t               write_slots[8];
 	}PACKED members;
