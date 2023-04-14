@@ -70,6 +70,7 @@
 #define CO2_ID_2              0x3B
 #define CO2_ID_3              0x3C
 #define CO2_ID_4              0x3D
+#define CO2_FIRMWARE_REV		0x38
 //Read/Write
 #define CO2_CAL_STATUS        0x81
 #define CO2_CAL_COMMAND_H     0x82
@@ -79,6 +80,7 @@
 #define CO2_OVERRIDE_H        0x86
 #define CO2_OVERRIDE_L        0x87
 
+#define CO2_CALIB_STATUS_MINOR 0xC1
 #define CO2_START_REG         0xC3
 #define CO2_ABC_TIME_H        0xC4
 #define CO2_ABC_TIME_L        0xC5
@@ -100,6 +102,12 @@
 #define CO2_METER_CONTROL     0xA5
 #define CO2_I2C_ADDR_REG      0xA7
 
+#define CO2_FACTORY_CALIB_CMD 	0x7C02
+#define CO2_FORCE_ABC_CALIB_CMD	0x7C03
+#define CO2_TARGET_CALIB_CMD		0x7C05
+#define CO2_BACKGROUND_CALIB_CMD	0x7C06
+#define CO2_ZERO_CALIB_CMD			0x7C07
+
 //the register backups should have the following registers
 //  (N/A)       The Literal Value 0xC3, base address for the read.
 //  (0xC3)      The Start Measurement Register
@@ -111,20 +119,32 @@ static volatile uint16_t abc_hours = 0;
 
 static uint16_t abc_target = ABC_MIN_TARGET;
 static uint16_t abc_period = ABC_DEFAULT_TIME;
+// static bool abc_enable = true;
 
 
-static CO2_reading_t CO2_read( void );
+// static CO2_reading_t CO2_read( void );
 
 /********************************************************************
  *Functions                                                         *
  *******************************************************************/
-
+/*!
+ * @brief	: sensor enabled by EN pin
+ * @param	: None
+ * @return	: None
+ * @note		: Refer to section 3.4 of I2C on Senseair Sunrise guideline (TDE5531)
+ */
 static void enable()
 {
 	LL_GPIO_SetOutputPin(CO2_EN_PORT,CO2_EN_PIN);
 	delay_timeout_ms(36);
 }
 
+/*!
+ * @brief	: sensor disabled by EN pin
+ * @param	: None
+ * @return	: None
+ * @note		: Refer to section 3.4 of I2C on Senseair Sunrise guideline (TDE5531)
+ */
 static void disable()
 {
 	LL_GPIO_ResetOutputPin(CO2_EN_PORT,CO2_EN_PIN);
@@ -266,7 +286,13 @@ static int write_registers_secure(uint8_t *regs, uint8_t count, uint8_t ignored_
 	
 	return 1;
 }
- 
+
+/*!
+ * @brief	: backup data needed for ABC and IIR filter
+ * @param	: None
+ * @return	: State of read regiisters (Successful or not)
+ * @note		: Refer to section 3.4 of I2C on Senseair Sunrise guideline (TDE5531)
+ */
 static int backup_regs()
 {
 	uint8_t return_value = 0;
@@ -293,17 +319,19 @@ static int start_measurement()
 	//The start_reg should have value 1 to trigger the measurement.
 	register_backups[1] = 1;
 	//We need to write the ABC Hours into the register
-	register_backups[2] = abc_hours;
-	register_backups[3] = abc_hours;
+	register_backups[2] = (uint8_t)(abc_hours >> 8);
+	register_backups[3] = (uint8_t)abc_hours;
 	//The rest of the values are left over from backup_regs, which is intended.
 	return write_registers(register_backups, CO2_ABC_PARAM_STOP - CO2_START_REG +2);
 }
 
+volatile int abc_backup_hr = 0;/* test purpose */
 void CO2_hourly_interrupt()
 {
 	//this interrupt serves to keep track of the ABC time.
 	//The variable for the ABC time should be reset to 0 whenever a device init is run
 	abc_hours++;
+	abc_backup_hr++;/* test purpose */
 }
 
 static void set_abc(uint16_t period, uint16_t target)
@@ -315,7 +343,7 @@ static void set_abc(uint16_t period, uint16_t target)
 	
 	if(period)
 	{
-		abc_period = ABC_DEFAULT_TIME;
+		abc_period = period;
 	}
 	else
 	{
@@ -339,8 +367,8 @@ static void target_calibration(uint16_t target)
 	
 	//set the calibration mode to target calibration
 	command_buffer[0] = CO2_CAL_COMMAND_H;
-	command_buffer[1] = 0x7C;
-	command_buffer[2] = 0x05;
+	command_buffer[1] = (uint8_t)(CO2_TARGET_CALIB_CMD >> 8);
+	command_buffer[2] = (uint8_t)(CO2_TARGET_CALIB_CMD);
 	
 	write_registers(command_buffer, 3);
 	
@@ -358,7 +386,7 @@ static void target_calibration(uint16_t target)
 	{	
 		if(command_buffer[0] & 0x10)
 		{
-			Debug_printf("Calibration Complete\r\n");
+			Debug_printf("Target Calibration Complete\r\n");
 		}
 	}
 	
@@ -389,8 +417,8 @@ static void reset_calibration_to_factory(void)
 	
 	//send the calibration command
 	command_buffer[0] = CO2_CAL_COMMAND_H;
-	command_buffer[1] = 0x7C;
-	command_buffer[2] = 0x02;
+	command_buffer[1] = (uint8_t)(CO2_FACTORY_CALIB_CMD >> 8);
+	command_buffer[2] = (uint8_t)(CO2_FACTORY_CALIB_CMD);
 	
 	write_registers(command_buffer, 3);
 	
@@ -406,7 +434,7 @@ static void reset_calibration_to_factory(void)
 	{	
 		if(command_buffer[0] & 0x04)
 		{
-			Debug_printf("Calibration Complete\r\n");
+			Debug_printf("Factory Calibration Complete\r\n");
 		}
 	}
 	
@@ -460,15 +488,15 @@ void C02_init( void )
 	defaults_1[2] = 0x00;
 	defaults_1[3] = 0x00;
 	//Set calibration command to 400, even though we don't use the "target Calibration"
-	defaults_1[4] = 400>>8;
-	defaults_1[5] = 400&0xFF;
+	defaults_1[4] = 400 >> 8;
+	defaults_1[5] = 400 & 0xFF;
 	//CO2 Override value needs to be at datasheet-default value 32767
-	defaults_1[6] = 32767 >>8;
+	defaults_1[6] = 32767 >> 8;
 	defaults_1[7] = 32767 & 0xFF;
 	//We will also set the ABC time to 0
 	defaults_1[8] = 0;
 	defaults_1[9] = 0;
-	
+
 	write_registers(defaults_1, 10);
 	
 	//Now for the second half of the calibration
@@ -480,37 +508,32 @@ void C02_init( void )
 	defaults_2[1] = 1;
 	//measurement period default value is 16
 	defaults_2[2] = 0;
-	defaults_2[3] = 16;
+	defaults_2[3] = 0;
 	//Number of samples default to 8
 	defaults_2[4] = 0;
 	defaults_2[5] = 8;
 	//ABC_PERIOD is either 180 or 0, depending on if enabled, configured elsewhere.
-	defaults_2[6] = abc_period>>8;
+	defaults_2[6] = abc_period >> 8;
 	defaults_2[7] = abc_period & 0xFF;
 
 	write_registers(defaults_2, 8);
 	delay_timeout_ms(100);
 	
-	defaults_3[0] = 0x9D;
+	defaults_3[0] = CO2_CLEAR_ERROR;
 	//clear error status by writing to any number
 	defaults_3[1] = 0xFF;
 	//abc target is defined elsewhere, write it here
-	defaults_3[2] = abc_target>>8;
+	defaults_3[2] = abc_target >> 8;
 	defaults_3[3] = abc_target & 0xFF;
-	
+
 	write_registers(defaults_3, 4);
 	
 	delay_timeout_ms(100);
 	
-	
-	
 	//now that all defaults are written, issue a reset command, so they all take
-	//this is nessessary because some parameters require a reset, as per datasheet.
-
-	
+	//this is nessessary because some parameters require a reset, as per datasheet.	
 	single_command_regs[0] = CO2_SCR;
-	single_command_regs[1] = 0xFF;
-	
+	single_command_regs[1] = 0xFF;	
 	write_registers(single_command_regs, 2);
 	
 	//set the ABC hours to 0
@@ -548,9 +571,10 @@ void C02_init( void )
 }
  
  
-static CO2_reading_t CO2_read( void )
+CO2_reading_t CO2_read( void )
 {
 	uint8_t rx_data[2] = {0};
+	uint8_t fw_rev[2] = {0};
 	CO2_reading_t return_value = {0};
 	
 	static TimerEvent_t CO2Timer;
@@ -559,7 +583,16 @@ static CO2_reading_t CO2_read( void )
 	i2c1_init();
 
 	enable();
-	
+
+	if(read_registers_secure(CO2_FIRMWARE_REV, rx_data, 2, 0) == 0)
+	{
+		DBG_CO2_printf("Failed to read value\r\n");
+	}
+	else
+	{
+		Debug_printf("CO2 firmware revision: %02x%02x\r\n", rx_data[0], rx_data[1]);
+	}
+
 	//Restore REGS and START MEASUREMENT are a single command
 	if(start_measurement() == 0)
 	{
@@ -629,7 +662,10 @@ static CO2_reading_t CO2_read( void )
 		return_value.co2_error_backup_fail = 1;
 		return_value.co2_error = 1;
 	}
-	
+
+	read_registers(CO2_CAL_STATUS, fw_rev, 1);
+	Debug_printf("Calibration Status is %02x. Hourly counter is %d\r\n", fw_rev[0], abc_hours);
+	await_uart_tx();
 	//enable low
 	disable();
 	
@@ -642,11 +678,11 @@ static CO2_reading_t CO2_read( void )
 void co2_uplink( void )
 {
 	co2_payload_t payload = {0};
-	co2_error_payload_t error = {0};
+	// co2_error_payload_t error = {0};
 	Si1133_reading_t light_reading = {0};
 	sht30Reading_t ht_reading;
 	CO2_reading_t reading = CO2_read();
-	
+	/* 
 	int i = 0;
 	
 	//try to read the CO2 several times, before quitting
@@ -658,7 +694,7 @@ void co2_uplink( void )
 			break;
 		delay_timeout_ms(20);
 	}
-	
+
 	//this is the error case, uplink an error packet
 	if(reading.value >10000 || reading.value < 400 || reading.co2_error)
 	{
@@ -687,6 +723,7 @@ void co2_uplink( void )
 		Uplink(error.payload,CO2_ERROR_SIZE);
 	}
 	else
+	 */
 	{
 		payload.members.CO2 = reading.value;
 		
@@ -766,8 +803,9 @@ static void co2_cli_device_help()
 	Debug_printf("Usage: device show\r\n");
 	Debug_printf("\tShows device configuration\r\n");
 	await_uart_tx();
-	Debug_printf("Usage: device abc [target]\r\n");
-	Debug_printf("\tSets the CO2 ABC Target, default 400 (ppm)\r\n");
+	Debug_printf("Usage: device abc [target] [period]\r\n");
+	Debug_printf("\tSets the CO2 ABC Target, default %d (ppm), after Period hours, default %d\r\n",
+																	 ABC_MIN_TARGET, ABC_DEFAULT_TIME);
 	await_uart_tx();
 	Debug_printf("Usage: device abc [enable|disable]\r\n");
 	Debug_printf("\tEnables or Disables ABC\r\n");
@@ -878,6 +916,8 @@ void co2_cli_device(int argc, char *argv[])
 		{
 			//Configure ABD baseline/Target.
 			target = atoi(argv[1]);
+
+			abc_period = atoi(argv[2]);
 			
 			set_abc(abc_period, target);
 		}
@@ -929,6 +969,11 @@ void co2_onDownlink(uint8_t *buffer, uint8_t size)
 	if(downlink_type == downlink_type_co2_calib)
 	{
 		target_calibration(cal_downlink.cal.target);
+	}
+
+	if(downlink_type == downlink_type_co2_factory_calib)
+	{
+		reset_calibration_to_factory();
 	}
 	
 	co2_save_config();

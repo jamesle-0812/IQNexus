@@ -382,6 +382,11 @@ bool default_downlink(uint8_t *buffer, uint8_t size)
 			}
 			
 			lora_hours_until_rejoin = downlink.members.rejoin_period;
+
+			if (device_mode == 20)
+			{
+				lora_hours_until_rejoin *= 12;
+			}
 			
 			//lets not force the rejoin
 			Debug_printf("Rejoin Period Updated\r\n");

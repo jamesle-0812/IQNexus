@@ -53,8 +53,9 @@ void co2_onDownlink(uint8_t *buffer, uint8_t size);
 void legacy_co2_onDownlink(uint8_t *buffer, uint8_t size);
 void co2_save_config( void );
 void co2_load_config( void );
+CO2_reading_t CO2_read( void );
  
- /********************************************************************
+/********************************************************************
  *Global Variables                                                  *
  ********************************************************************/
 

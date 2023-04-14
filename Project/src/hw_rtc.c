@@ -126,6 +126,14 @@ typedef struct
 #define CONV_NUMER                (MSEC_NUMBER >> COMMON_FACTOR)
 #define CONV_DENOM                (1 << (N_PREDIV_S - COMMON_FACTOR))
 
+#define DAYS_IN_LEAP_YEAR         ( ( uint32_t )  366U )
+#define DAYS_IN_YEAR              ( ( uint32_t )  365U )
+#define SECONDS_IN_1DAY           ( ( uint32_t )86400U )
+#define SECONDS_IN_1HOUR          ( ( uint32_t ) 3600U )
+#define SECONDS_IN_1MINUTE        ( ( uint32_t )   60U )
+#define MINUTES_IN_1HOUR          ( ( uint32_t )   60U )
+#define HOURS_IN_1DAY             ( ( uint32_t )   24U )
+
 #if defined(USE_B_L072Z_LRWAN1)
 #define HW_RTC_EXTI_LINE_ALARM_EVENT LL_EXTI_LINE_17
 #else
@@ -588,6 +596,20 @@ static void HW_RTC_SetConfig(void)
 //                     __LL_RTC_CONVERT_BIN2BCD(1), __LL_RTC_CONVERT_BIN2BCD(0));
 //  LL_RTC_TIME_Config(RTC, LL_RTC_TIME_FORMAT_AM_OR_24, 0, 0, 0);
 
+  
+  #ifdef TIME_NEAR_OVERFLOW_AT_BOOT
+  {
+    //RTC, WEEKDAY, DAY, MONTH, YEAR
+    LL_RTC_DATE_Config(RTC, LL_RTC_WEEKDAY_FRIDAY, __LL_RTC_CONVERT_BIN2BCD(18),
+                                                   __LL_RTC_CONVERT_BIN2BCD(2), 
+                                                   __LL_RTC_CONVERT_BIN2BCD(0));
+	  //RTC, FORMAT, HOURS, MINUTES, SECONDS
+	  LL_RTC_TIME_Config(RTC, LL_RTC_TIME_FORMAT_AM_OR_24, __LL_RTC_CONVERT_BIN2BCD(13), 
+                                                         __LL_RTC_CONVERT_BIN2BCD(00), 
+                                                         __LL_RTC_CONVERT_BIN2BCD(00));
+  }
+  #endif
+  
   /* Exit init mode */
   LL_RTC_DisableInitMode(RTC);
 
@@ -778,6 +800,98 @@ static TimerTime_t HW_RTC_GetCalendarValue(HW_RTC_DateTypeDef *RTC_DateStruct, H
   return(calendarValue);
 }
 
+int64_t HW_RTC_Tick_to_ms(int64_t tick)
+{
+  return  ((tick * CONV_NUMER) / CONV_DENOM);
+}
+
+static uint64_t HW_RTC_GetCurrentValue(HW_RTC_DateTypeDef *RTC_DateStruct, HW_RTC_TimeTypeDef *RTC_TimeStruct)
+{
+  uint64_t calendarValue; 
+  uint32_t ssr;
+  uint32_t tr;
+  uint32_t dr;
+  uint32_t secs;
+  
+  /*
+   * as shadow registers are not used, we must read RTC->SSR, TR and DR registers
+   * and ensure they have not changed between 2 reads to ensure time and date are coherent
+   * Then we must use these values directly instead of readnig them again and again
+   * with LL_RTC_TIME_Getxxx() functions
+   */
+  do
+  {
+    ssr = READ_REG(RTC->SSR);
+    tr = READ_REG(RTC->TR);
+    dr = READ_REG(RTC->DR);
+  } while (ssr != READ_REG(RTC->SSR));
+
+  RTC_TimeStruct->SubSeconds = READ_BIT(ssr, RTC_SSR_SS);
+
+  RTC_TimeStruct->Hours = HW_RTC_Bcd2ToByte((uint8_t)((tr & (RTC_TR_HT | RTC_TR_HU)) >> 16U));
+
+  RTC_TimeStruct->Minutes = HW_RTC_Bcd2ToByte((uint8_t)((tr & (RTC_TR_MNT | RTC_TR_MNU)) >>8U));
+
+  RTC_TimeStruct->Seconds = HW_RTC_Bcd2ToByte((uint8_t)(tr & (RTC_TR_ST | RTC_TR_SU)));
+
+  RTC_TimeStruct->TimeFormat = READ_BIT(tr, RTC_TR_PM);
+
+  RTC_DateStruct->WeekDay = (uint32_t)(READ_BIT(dr, RTC_DR_WDU) >> RTC_POSITION_DR_WDU);
+
+  RTC_DateStruct->Month = HW_RTC_Bcd2ToByte((uint8_t)((dr & (RTC_DR_MT | RTC_DR_MU)) >> 8U));
+
+  RTC_DateStruct->Day = HW_RTC_Bcd2ToByte((uint8_t)(dr & (RTC_DR_DT | RTC_DR_DU)));
+
+  RTC_DateStruct->Year = HW_RTC_Bcd2ToByte((uint8_t)((dr & (RTC_DR_YT | RTC_DR_YU)) >> 16U));
+
+  /* years (calc valid up to year 2099)*/
+  secs = RTC_DateStruct->Year * DaysInYear;
+  secs += (RTC_DateStruct->Year + 3) / 4;    /* we add 1 day for full-year 00 (which is 2000), 1 day for full-year 2004,...) */
+  /* Day in month, adjusted to take into account leap years */
+  for (uint8_t i = 0; i < (RTC_DateStruct->Month - 1); i++)
+  {
+    secs += DaysInMonth[i];
+  }
+  if (((RTC_DateStruct->Year % 4) == 0) && (RTC_DateStruct->Month >= 3))
+  {
+    secs++;
+  }
+
+  /* days */
+  secs += (RTC_DateStruct->Day - 1);
+
+  secs *= SECONDS_IN_1DAY;
+
+  secs += ( (uint32_t)RTC_TimeStruct->Seconds +
+            (uint32_t)RTC_TimeStruct->Minutes*SECONDS_IN_1MINUTE +
+            (uint32_t)RTC_TimeStruct->Hours*SECONDS_IN_1HOUR);
+
+  calendarValue = (((uint64_t)secs) << N_PREDIV_S) + (PREDIV_S - RTC_TimeStruct->SubSeconds);
+  
+  /* 
+  Debug_printf("Now is %02d:%02d:%02d, %d/%d/%d", RTC_TimeStruct->Hours,
+                                                  RTC_TimeStruct->Minutes,
+                                                  RTC_TimeStruct->Seconds,
+                                                  RTC_DateStruct->Day,
+                                                  RTC_DateStruct->Month,
+                                                  RTC_DateStruct->Year+2000);  
+  char str[32];
+  sprintf(str, ". Current value is %lld\r\n", (long long)calendarValue);
+  Debug_printf(str);
+   */
+  return calendarValue;
+}
+
+int64_t HW_RTC_GetCurrentTime(void)
+{
+  HW_RTC_TimeTypeDef  RTC_TimeStruct;
+  HW_RTC_DateTypeDef  RTC_DateStruct;
+
+  int64_t value = (int64_t)HW_RTC_GetCurrentValue(&RTC_DateStruct, &RTC_TimeStruct);
+
+  return value;
+}
+
 static uint8_t HW_RTC_ByteToBcd2(uint8_t Value)
 {
   return __LL_RTC_CONVERT_BIN2BCD(Value);
@@ -836,6 +950,369 @@ static void HW_RTC_AlarmIRQHandler(void)
 		device.on_hourly_alarm_interrupt();
 		lora_manage_rejoin();
 	}
+}
+
+void HW_RTC_Convert2Format(uint32_t ms, HW_RTC_TimeTypeDef *TimeStruct)
+{
+  uint32_t secs = ms / 1000;
+
+  TimeStruct->SubSeconds += (ms % 1000);
+  if (TimeStruct->SubSeconds >= 1000)
+  {
+    TimeStruct->SubSeconds -= 1000;
+    TimeStruct->Seconds++;
+  }
+
+  TimeStruct->Seconds += (secs % 60);
+  if (TimeStruct->Seconds >= 60)
+  {
+    TimeStruct->Seconds -= 60;
+    TimeStruct->Minutes++;
+  }
+
+  TimeStruct->Minutes += ((secs / 60) % 60);
+  if (TimeStruct->Minutes >= 60)
+  {
+    TimeStruct->Minutes -= 60;
+    TimeStruct->Hours++;
+  }
+
+  TimeStruct->Hours += secs / 3600;
+  if (!READ_BIT(RTC->ALRMBR, RTC_ALRMBR_PM))
+  {
+    if (TimeStruct->Hours >= 24)
+      TimeStruct->Hours -= 24;
+  }
+  else
+  {
+    if (TimeStruct->Hours >= 24)
+      TimeStruct->Hours %= 12;
+  }
+}
+
+uint32_t HW_get_alarmB(void)
+{
+
+  uint8_t bcd = 0;
+  uint8_t min_byte = 0;
+  uint8_t sec_byte = 0;
+  uint8_t hr_byte = 0;
+
+  bcd = LL_RTC_ALMB_GetHour(RTC);
+  hr_byte = __LL_RTC_CONVERT_BCD2BIN(bcd);
+  // Debug_printf("AlarmB is set at %02d:", hr_byte);
+
+  bcd = LL_RTC_ALMB_GetMinute(RTC);
+  min_byte = __LL_RTC_CONVERT_BCD2BIN(bcd);
+  // Debug_printf("%02d:", min_byte);
+
+  bcd = LL_RTC_ALMB_GetSecond(RTC);
+  sec_byte = __LL_RTC_CONVERT_BCD2BIN(bcd);
+  // Debug_printf("%02d\r\n", sec_byte);
+  await_uart_tx();
+
+  return CALENDAR_VALUE(0, sec_byte, min_byte, hr_byte, 0);
+}
+
+uint32_t HW_get_alarmA(void)
+{
+
+  uint8_t bcd = 0;
+  uint8_t hr_byte = 0;
+  uint8_t min_byte = 0;
+  uint8_t sec_byte = 0;
+
+  bcd = LL_RTC_ALMA_GetHour(RTC);
+  hr_byte = __LL_RTC_CONVERT_BCD2BIN(bcd);
+  // Debug_printf("AlarmA is set at %02d:", hr_byte);
+
+  bcd = LL_RTC_ALMA_GetMinute(RTC);
+  min_byte = __LL_RTC_CONVERT_BCD2BIN(bcd);
+  // Debug_printf("%02d:", min_byte);
+
+  bcd = LL_RTC_ALMA_GetSecond(RTC);
+  sec_byte = __LL_RTC_CONVERT_BCD2BIN(bcd);
+  // Debug_printf("%02d\r\n", sec_byte);
+  await_uart_tx();
+
+  return CALENDAR_VALUE(0, sec_byte, min_byte, hr_byte, 0);
+}
+
+void HW_AlarmA_Addup(uint32_t ms)
+{
+
+  uint8_t bcd = 0;
+  HW_RTC_TimeTypeDef TimeStruct = {0};
+
+  bcd = LL_RTC_ALMA_GetSecond(RTC);
+  TimeStruct.Seconds = __LL_RTC_CONVERT_BCD2BIN(bcd);
+
+  bcd = LL_RTC_ALMA_GetMinute(RTC);
+  TimeStruct.Minutes = __LL_RTC_CONVERT_BCD2BIN(bcd);
+
+  HW_RTC_Convert2Format(ms, &TimeStruct);
+
+  //enable writes to the alarm register
+  /* Set RTC_AlarmStructure with calculated values*/
+  /* Code from HAL_RTC_SetAlarm_IT / LL_RTC_ALMA_Init */
+  LL_RTC_DisableWriteProtection(RTC);
+
+  /* Disable the Alarm A interrupt */
+  LL_RTC_ALMA_Disable(RTC);
+  LL_RTC_ClearFlag_ALRA(RTC);
+  LL_RTC_DisableIT_ALRA(RTC);
+
+  /* Wait till RTC ALRxWF flag is set */
+  while (!LL_RTC_IsActiveFlag_ALRAW(RTC))
+  {
+    ;
+  }
+
+  bcd = __LL_RTC_CONVERT_BIN2BCD(TimeStruct.Seconds);
+  LL_RTC_ALMA_SetSecond(RTC, bcd);
+
+  bcd = __LL_RTC_CONVERT_BIN2BCD(TimeStruct.Minutes);
+  LL_RTC_ALMA_SetMinute(RTC, bcd);
+
+  /* Configure the Alarm state: Enable Alarm */
+  LL_RTC_ALMA_Enable(RTC);
+
+  /* Configure the Alarm interrupt */
+  LL_RTC_EnableIT_ALRA(RTC);
+
+  /* Enable the write protection for RTC registers */
+  LL_RTC_EnableWriteProtection(RTC);
+}
+
+void HW_AlarmB_Addup(uint32_t ms)
+{
+
+  HW_RTC_TimeTypeDef TimeStruct = {0};
+  uint8_t bcd = 0;
+  uint16_t subsec_byte = 0;
+
+  bcd = LL_RTC_ALMB_GetSecond(RTC);
+  TimeStruct.Seconds = __LL_RTC_CONVERT_BCD2BIN(bcd);
+
+  bcd = LL_RTC_ALMB_GetMinute(RTC);
+  TimeStruct.Minutes = __LL_RTC_CONVERT_BCD2BIN(bcd);
+
+  bcd = LL_RTC_ALMB_GetHour(RTC);
+  TimeStruct.Hours = __LL_RTC_CONVERT_BCD2BIN(bcd);
+
+  subsec_byte = LL_RTC_ALMB_GetSubSecond(RTC);
+  TimeStruct.SubSeconds = (uint32_t)(1000 - (subsec_byte * 1000 / PREDIV_S));
+
+  HW_RTC_Convert2Format(ms, &TimeStruct);
+
+  subsec_byte = (1000 - (uint16_t)TimeStruct.SubSeconds) * PREDIV_S / 1000;
+
+  //enable writes to the alarm register
+  /* Set RTC_AlarmStructure with calculated values*/
+  /* Code from HAL_RTC_SetAlarm_IT / LL_RTC_ALMA_Init */
+  LL_RTC_DisableWriteProtection(RTC);
+
+  /* Disable the Alarm B interrupt */
+  LL_RTC_ALMB_Disable(RTC);
+  LL_RTC_ClearFlag_ALRB(RTC);
+  LL_RTC_DisableIT_ALRB(RTC);
+
+  /* Wait till RTC ALRxWF flag is set */
+  while (!LL_RTC_IsActiveFlag_ALRBW(RTC))
+  {
+    ;
+  }
+
+  LL_RTC_ALMB_SetSubSecond(RTC, subsec_byte);
+
+  bcd = __LL_RTC_CONVERT_BIN2BCD(TimeStruct.Seconds);
+  LL_RTC_ALMB_SetSecond(RTC, bcd);
+
+  bcd = __LL_RTC_CONVERT_BIN2BCD(TimeStruct.Minutes);
+  LL_RTC_ALMB_SetMinute(RTC, bcd);
+
+  /* Configure the Alarm state: Enable Alarm */
+  LL_RTC_ALMB_Enable(RTC);
+
+  /* Configure the Alarm interrupt */
+  LL_RTC_EnableIT_ALRB(RTC);
+
+  /* Enable the write protection for RTC registers */
+  LL_RTC_EnableWriteProtection(RTC);
+}
+
+/*!
+ * @brief: 	Setup AlarmB to rise an alarm in next xxx seconds
+ * @param: 	time to the next alarm (in seconds)
+ * @return: None
+ * @note: 	Tested with the param less than 1 hr.
+ */
+void HW_AlarmB_NextAlarmIn(uint16_t secs)
+{
+  uint32_t ssr;
+  uint32_t tr;
+  // uint32_t dr;
+  HW_RTC_TimeTypeDef TimeStruct = {0};
+  uint8_t bcd = 0;
+
+  /*
+   * as shadow registers are not used, we must read RTC->SSR, TR and DR registers
+   * and ensure they have not changed between 2 reads to ensure time and date are coherent
+   * Then we must use these values directly instead of readnig them again and again
+   * with LL_RTC_TIME_Getxxx() functions
+   */
+  do
+  {
+    ssr = RTC->SSR;
+    tr = RTC->TR;
+    // dr = RTC->DR;
+  } while (ssr != RTC->SSR);
+  
+  // RTC_TimeStruct->SubSeconds = READ_BIT(ssr, RTC_SSR_SS);
+  TimeStruct.Hours = HW_RTC_Bcd2ToByte((uint8_t)((tr & (RTC_TR_HT | RTC_TR_HU)) >> 16U));
+  TimeStruct.Minutes = HW_RTC_Bcd2ToByte((uint8_t)((tr & (RTC_TR_MNT | RTC_TR_MNU)) >>8U));
+  TimeStruct.Seconds = HW_RTC_Bcd2ToByte((uint8_t)(tr & (RTC_TR_ST | RTC_TR_SU)));
+
+  HW_RTC_Convert2Format((uint32_t)(secs*1000), &TimeStruct);
+
+	//enable writes to the alarm register
+	/* Set RTC_AlarmStructure with calculated values*/
+  /* Code from HAL_RTC_SetAlarm_IT / LL_RTC_ALMA_Init */
+  LL_RTC_DisableWriteProtection(RTC);
+
+  /* Disable the Alarm B interrupt */
+  LL_RTC_ALMB_Disable(RTC);
+  LL_RTC_ClearFlag_ALRB(RTC);
+  LL_RTC_DisableIT_ALRB(RTC);
+  /* 
+  LL_EXTI_DisableIT_0_31(HW_RTC_EXTI_LINE_ALARM_EVENT);
+  LL_EXTI_DisableRisingTrig_0_31(HW_RTC_EXTI_LINE_ALARM_EVENT);
+   */
+  /* Wait till RTC ALRxWF flag is set */
+  while (!LL_RTC_IsActiveFlag_ALRBW(RTC))
+  {
+    ;
+  }
+
+	bcd = __LL_RTC_CONVERT_BIN2BCD(TimeStruct.Seconds);
+	MODIFY_REG(RTC->ALRMBR, RTC_ALRMBR_ST | RTC_ALRMBR_SU, bcd);
+	// LL_RTC_ALMB_SetSecond(RTC, bcd);
+
+	bcd = __LL_RTC_CONVERT_BIN2BCD(TimeStruct.Minutes);
+	MODIFY_REG(RTC->ALRMBR, RTC_ALRMBR_MNT | RTC_ALRMBR_MNU, bcd << RTC_ALRMBR_MNU_Pos);
+	// LL_RTC_ALMB_SetMinute(RTC, bcd);
+
+  bcd = __LL_RTC_CONVERT_BIN2BCD(TimeStruct.Hours);
+  LL_RTC_ALMB_SetHour(RTC, bcd);
+  
+
+  /* Configure the Alarm state: Enable Alarm */
+  LL_RTC_ALMB_Enable(RTC);
+
+  /* Configure the Alarm interrupt */
+  LL_RTC_EnableIT_ALRB(RTC);
+
+  /* RTC Alarm Interrupt Configuration: EXTI configuration */
+  /* 
+  LL_EXTI_EnableIT_0_31(HW_RTC_EXTI_LINE_ALARM_EVENT);
+  LL_EXTI_EnableRisingTrig_0_31(HW_RTC_EXTI_LINE_ALARM_EVENT);
+	 */
+  /* Enable the write protection for RTC registers */
+  LL_RTC_EnableWriteProtection(RTC);
+}
+
+/**
+ * @brief: 	Setup AlarmB to rise an alarm in next xxx mili-secs
+ * @param: 	time to the next alarm (in milisecs)
+ * @return: None
+ * @note: 	Tested with less than 1 hr.
+ */
+void HW_AlarmB_NextAlarmIn_ms(uint32_t ms)
+{
+  uint32_t ssr;
+  uint32_t tr;
+  // uint32_t dr;
+  HW_RTC_TimeTypeDef TimeStruct = {0};
+  uint8_t bcd = 0;
+  uint16_t subsec_byte = 0;
+
+  /*
+   * as shadow registers are not used, we must read RTC->SSR, TR and DR registers
+   * and ensure they have not changed between 2 reads to ensure time and date are coherent
+   * Then we must use these values directly instead of readnig them again and again
+   * with LL_RTC_TIME_Getxxx() functions
+   */
+  do
+  {
+    ssr = RTC->SSR;
+    tr = RTC->TR;
+    // dr = RTC->DR;
+  } while (ssr != RTC->SSR);
+  
+  subsec_byte = READ_BIT(ssr, RTC_SSR_SS);
+  TimeStruct.Hours = HW_RTC_Bcd2ToByte((uint8_t)((tr & (RTC_TR_HT | RTC_TR_HU)) >> 16U));
+  TimeStruct.Minutes = HW_RTC_Bcd2ToByte((uint8_t)((tr & (RTC_TR_MNT | RTC_TR_MNU)) >>8U));
+  TimeStruct.Seconds = HW_RTC_Bcd2ToByte((uint8_t)(tr & (RTC_TR_ST | RTC_TR_SU)));
+
+  /*
+   * Subsecond of RTC is a downcounter counting down from PREDIV_S -> 0 to trigger
+   * an update for seconds and then so on. Thus, the next line is to convert
+   * counting down value to actual milliseconds.
+   */
+  TimeStruct.SubSeconds = (uint32_t)(1000 - (subsec_byte*1000/PREDIV_S));
+
+  HW_RTC_Convert2Format(ms, &TimeStruct);
+  // convert back to counting down value
+  subsec_byte = (1000 - (uint16_t)TimeStruct.SubSeconds)*PREDIV_S/1000;
+
+
+	//enable writes to the alarm register
+	/* Set RTC_AlarmStructure with calculated values*/
+  /* Code from HAL_RTC_SetAlarm_IT / LL_RTC_ALMA_Init */
+  LL_RTC_DisableWriteProtection(RTC);
+
+  /* Disable the Alarm B interrupt */
+  LL_RTC_ALMB_Disable(RTC);
+  LL_RTC_ClearFlag_ALRB(RTC);
+  LL_RTC_DisableIT_ALRB(RTC);
+  /* 
+  LL_EXTI_DisableIT_0_31(HW_RTC_EXTI_LINE_ALARM_EVENT);
+  LL_EXTI_DisableRisingTrig_0_31(HW_RTC_EXTI_LINE_ALARM_EVENT);
+   */
+  /* Wait till RTC ALRxWF flag is set */
+  while (!LL_RTC_IsActiveFlag_ALRBW(RTC))
+  {
+    ;
+  }
+
+  LL_RTC_ALMB_SetSubSecond(RTC, subsec_byte);
+  LL_RTC_ALMB_SetSubSecondMask(RTC, ((HW_RTC_ALARMSUBSECONDMASK) >> (RTC_POSITION_ALMB_MASKSS)));
+
+	bcd = __LL_RTC_CONVERT_BIN2BCD(TimeStruct.Seconds);
+	MODIFY_REG(RTC->ALRMBR, RTC_ALRMBR_ST | RTC_ALRMBR_SU, bcd);
+	// LL_RTC_ALMB_SetSecond(RTC, bcd);
+
+	bcd = __LL_RTC_CONVERT_BIN2BCD(TimeStruct.Minutes);
+	MODIFY_REG(RTC->ALRMBR, RTC_ALRMBR_MNT | RTC_ALRMBR_MNU, bcd << RTC_ALRMBR_MNU_Pos);
+	// LL_RTC_ALMB_SetMinute(RTC, bcd);
+
+  bcd = __LL_RTC_CONVERT_BIN2BCD(TimeStruct.Hours);
+  LL_RTC_ALMB_SetHour(RTC, bcd);
+
+
+  /* Configure the Alarm state: Enable Alarm */
+  LL_RTC_ALMB_Enable(RTC);
+
+  /* Configure the Alarm interrupt */
+  LL_RTC_EnableIT_ALRB(RTC);
+
+  /* RTC Alarm Interrupt Configuration: EXTI configuration */
+  /* 
+  LL_EXTI_EnableIT_0_31(HW_RTC_EXTI_LINE_ALARM_EVENT);
+  LL_EXTI_EnableRisingTrig_0_31(HW_RTC_EXTI_LINE_ALARM_EVENT);
+	 */
+  /* Enable the write protection for RTC registers */
+  LL_RTC_EnableWriteProtection(RTC);
 }
 
 static void HW_RCC_OscConfig(void)

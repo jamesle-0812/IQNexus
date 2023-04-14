@@ -220,7 +220,7 @@ void legacy_C02_init( void )
 }
  
  
-static uint16_t CO2_read( void )
+static uint16_t CO2_read_legacy( void )
 {
 	uint8_t tx_data[1] = {TRIGGER_VAL};
 	uint8_t rx_data[2] = {0};
@@ -317,7 +317,7 @@ void legacy_co2_uplink( void )
 	co2_payload_t payload = {0};
 	sht30Reading_t ht_reading;
 	Si1133_reading_t light_reading = {0};
-	uint16_t value = CO2_read();
+	uint16_t value = CO2_read_legacy();
 	
 	int i = 0;
 	
@@ -325,7 +325,7 @@ void legacy_co2_uplink( void )
 	while(value == 0xFFFF)
 	{
 		i++;
-		value = CO2_read();
+		value = CO2_read_legacy();
 		if(i == 10)
 			break;
 	}
@@ -393,7 +393,7 @@ static void target_calibration(uint16_t target)
 	DBG_printf("TGT: 0x%02X%02X\r\n", command_buffer[2], command_buffer[3]);
 	
 	//take a reading, also disables the CO2
-	value = CO2_read();
+	value = CO2_read_legacy();
 	Debug_printf("Reading 1: %d\r\n", value);
 	
 	enable();
@@ -409,7 +409,7 @@ static void target_calibration(uint16_t target)
 	}
 	
 	//take another reading to check.
-	value = CO2_read();
+	value = CO2_read_legacy();
 	Debug_printf("Reading 2: %d\r\n", value);
 	
 	enable();

@@ -143,7 +143,7 @@
  #define DISABLE_MODBUS_DEBUG
  #define DISABLE_CO2_DEBUG
  #define DISABLE_CO2_L2_DEBUG
-//  #define DISABLE_ALARM_DEBUG
+ #define DISABLE_ALARM_DEBUG
  #define DISABLE_TIMER_DEBUG
  #define DISABLE_SX1276_DEBUG
  #define DISABLE_BUFFER_TRACE
@@ -151,6 +151,7 @@
  #define DISABLE_SIGFOX_DEBUG
  #define DISABLE_LORA_CLASS_DEBUG
  #define DISABLE_LORA_CLASSC_DEBUG
+// #define DISABLE_BME680_DEBUG
  
 // #define DISABLE_RADIO
 // #define ENABLE_DEBUG_PINS_TIMERS
@@ -158,7 +159,7 @@
 // #define ACCELERATE_HOURS
 // #define DISABLE_BOOT_LED
 // #define TIME_NEAR_OVERFLOW_AT_BOOT
- /*******************************************************************
+/********************************************************************
  *Global Enums (for main.c)                                         *
  ********************************************************************/
 #define DEVICE_UNINITIALISED  0xFF

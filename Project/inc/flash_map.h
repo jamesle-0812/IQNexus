@@ -234,8 +234,46 @@ typedef union
 	}PACKED members;
 }count_data_page_layout_t;
 STATIC_ASSERT((sizeof(MEMBER(count_data_page_layout_t,members)) == DATA_SIZE));
+
+typedef union
+{
+	uint8_t raw_bytes[PAGE_SIZE];
+	struct
+	{
+		uint8_t	humidity_threshold_upper;
+		uint8_t	humidity_thredhold_lower;
+		int16_t  temperature_threshold_upper;
+		int16_t  temperature_threshold_lower;
+		uint16_t	pressure_threshold_upper;
+		uint16_t	pressure_threshold_lower;
+		uint16_t co2_threshold_upper		;
+		uint16_t co2_threshold_lower		;
+		uint16_t	iaq_threshold_upper		;
+		uint16_t	iaq_threshold_lower		;
+		light_sensor_config_component_t light_config;
+		uint8_t 	flag;
+		uint16_t abc_period;
+		uint16_t abc_target;		
+		uint16_t
+			humidity_upper_enabled   	:1,
+			humidity_lower_enabled   	:1,
+			temperature_upper_enabled	:1,
+			temperature_lower_enabled	:1,
+			pressure_upper_enabled		:1,
+			pressure_lower_enabled		:1,
+			co2_upper_enabled				:1,
+			co2_lower_enabled				:1,
+			iaq_upper_enabled				:1,
+			iaq_lower_enabled				:1,
+			reserved                 	:6;
+		uint8_t threshold_wakeups;
+		uint8_t reserved2[PAGE_SIZE-27];
+	}PACKED members;
+	
+}bme680_config_page_layout_t;
+STATIC_ASSERT((sizeof(MEMBER(bme680_config_page_layout_t,members)) == PAGE_SIZE));
  
- /********************************************************************
+/********************************************************************
  *Function Prototypes                                               *
  ********************************************************************/
 void save_global_config_page( void );

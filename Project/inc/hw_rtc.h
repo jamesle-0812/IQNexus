@@ -188,6 +188,71 @@ uint32_t HW_RTC_ms2Tick(TimerTime_t timeMicroSec);
  */
 TimerTime_t HW_RTC_Tick2ms(uint32_t tick);
 
+/**
+ * @brief  Get current value the RTC, formatted in int64_t
+ * @param  None
+ * @retval RTC Timer value in ticks
+ * @author SenSum IoT (James)
+ */
+int64_t HW_RTC_GetCurrentTime(void);
+
+/**
+ * @brief  Converts time in ticks to time in ms, formatted in int64_t
+ * @param  none
+ * @retval Time in timer milliseconds
+ * @author SenSum IoT (James)
+ */
+int64_t HW_RTC_Tick_to_ms(int64_t tick);
+
+/**
+ * @brief  Get recent value of AlarmA and then setup the next alarm by plus ms
+ * @param  Time in milliseconds
+ * @retval none
+ * @author SenSum IoT (James)
+ */
+void HW_AlarmA_Addup(uint32_t ms);
+
+/**
+ * @brief  Get recent value of AlarmB and then setup the next alarm by plus ms
+ * @param  Time in milliseconds
+ * @retval None
+ * @author SenSum IoT (James)
+ */
+void HW_AlarmB_Addup(uint32_t ms);
+
+/**
+ * @brief  Get recent value of RTC and then setup AlarmB to rise an alarm in next secs seconds
+ * @param  Time in seconds
+ * @retval Time in timer milliseconds
+ * @author SenSum IoT (James)
+ */
+void HW_AlarmB_NextAlarmIn(uint16_t secs);
+
+/**
+ * @brief  Get recent value of RTC and then setup AlarmB to rise an alarm in next ms milliseconds
+ * @param  Time in milliseconds
+ * @retval None
+ * @author SenSum IoT (James)
+ */
+void HW_AlarmB_NextAlarmIn_ms(uint32_t ms);
+
+/**
+ * @brief  Read AlarmA and then convert it to ticks
+ * @param  None
+ * @retval Time in timer milliseconds (only hours, minutes and seconds are calculated)
+ * @author SenSum IoT (James)
+ */
+uint32_t HW_get_alarmA(void);
+
+/**
+ * @brief  Read AlarmB and then convert it to ticks
+ * @param  None
+ * @retval Time in timer milliseconds (only hours, minutes and seconds are calculated)
+ * @author SenSum IoT (James)
+ */
+uint32_t HW_get_alarmB(void);
+
+
 #ifdef __cplusplus
 }
 #endif

@@ -498,7 +498,12 @@ eExecStatus cli_rejoin( int argc, char *argv[], char **ppcStringReply )
 		{
 			lora_hours_until_rejoin = MIN_HOURS_TO_REJOIN;
 		}
-		
+
+		if (device_mode == 20)
+		{
+			lora_hours_until_rejoin *= 12;
+		}
+
 		Debug_printf("Hours until rejoin set to %d\r\n", lora_hours_until_rejoin);
 		await_uart_tx();
 		//update second to value

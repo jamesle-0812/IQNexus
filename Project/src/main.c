@@ -96,6 +96,7 @@ Maintainer: Miguel Luis, Gregory Cristian and Wael Guibene
 
 #include "sigfox_sensum.h"
 #include "radio_common.h"
+#include "bme680.h"
 
 
 #ifndef DISABLE_ALARM_DEBUG
@@ -136,6 +137,7 @@ void no_downlink_action(uint8_t *buffer, uint8_t size)
 sensum_device_callback_t device_modes[] = 
 {
 	{//0  Unconfigured
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&no_action,
 		.on_scheduled_wakeup       =&no_action,
 		.on_hourly_alarm           =&no_action,
@@ -159,6 +161,7 @@ sensum_device_callback_t device_modes[] =
 	},
 	
 	{//1  Three Counter
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&no_action,
 		.on_scheduled_wakeup       =&three_counter_uplink,
 		.on_hourly_alarm           =&no_action,
@@ -184,6 +187,7 @@ sensum_device_callback_t device_modes[] =
 	},
 	
 	{//2  Generic Modbus
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&no_action,
 		.on_scheduled_wakeup       =&genric_modbus_uplink,
 		.on_hourly_alarm           =&no_action,
@@ -207,6 +211,7 @@ sensum_device_callback_t device_modes[] =
 	},                             
 	
 	{//3  Two Counter with Tamper
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&two_counter_alarms,
 		.on_scheduled_wakeup       =&two_counter_synchronised_uplink,
 		.on_hourly_alarm           =&two_counter_on_hour,
@@ -233,6 +238,7 @@ sensum_device_callback_t device_modes[] =
 	},                             
 	
 	{//4  SHT20                       
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&no_action,
 		.on_scheduled_wakeup       =&sht20_uplink,
 		.on_hourly_alarm           =&no_action,
@@ -255,7 +261,8 @@ sensum_device_callback_t device_modes[] =
 		.cli_commands              = cmd_thresholds,
 	},                             
 	
-	{//5  Single Counter              
+	{//5  Single Counter         
+		.on_time_service				=&no_action,     
 		.on_each_wakeup            =&single_counter_alarms,
 		.on_scheduled_wakeup       =&single_counter_uplink,
 		.on_hourly_alarm           =&single_counter_on_hour,
@@ -281,6 +288,7 @@ sensum_device_callback_t device_modes[] =
 	},                             
 	
 	{//6  Three Edge Alarm            
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&no_action,
 		.on_scheduled_wakeup       =&threeEdge_uplink,
 		.on_hourly_alarm           =&no_action,
@@ -306,6 +314,7 @@ sensum_device_callback_t device_modes[] =
 	},                             
 	
 	{//7  Soil Probe                  
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&no_action,
 		.on_scheduled_wakeup       =&probe_sendData,
 		.on_hourly_alarm           =&no_action,
@@ -329,6 +338,7 @@ sensum_device_callback_t device_modes[] =
 	},                             
 	
 	{//8 Mux device, digital, analog and 4-20mA
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&no_action,
 		.on_scheduled_wakeup       =&three_mux_uplink,
 		.on_hourly_alarm           =&no_action,
@@ -352,6 +362,7 @@ sensum_device_callback_t device_modes[] =
 	},                             
 	
 	{//9  SHT30                       
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&no_action,
 		.on_scheduled_wakeup       =&sht30_onWakeup,
 		.on_hourly_alarm           =&no_action,
@@ -375,6 +386,7 @@ sensum_device_callback_t device_modes[] =
 	},                             
 	
 	{//10 Dual Counter with ADC       
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&no_action,
 		.on_scheduled_wakeup       =&two_counter_adc_uplink,
 		.on_hourly_alarm           =&no_action,
@@ -399,6 +411,7 @@ sensum_device_callback_t device_modes[] =
 	},                             
 	
 	{//11 Two I/O             
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&no_action,
 		.on_scheduled_wakeup       =&twoIO_uplink_state,
 		.on_hourly_alarm           =&no_action,
@@ -422,6 +435,7 @@ sensum_device_callback_t device_modes[] =
 	}, 	                         
 	
 	{//12 CO2                         
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&no_action,
 		.on_scheduled_wakeup       =&co2_uplink,
 		.on_hourly_alarm           =&CO2_hourly_interrupt,
@@ -445,6 +459,7 @@ sensum_device_callback_t device_modes[] =
 	},        
 
 	{//13 DS18B20                         
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&no_action,
 		.on_scheduled_wakeup       =&ds18b20_onWakeup,
 		.on_hourly_alarm           =&no_action,
@@ -467,6 +482,7 @@ sensum_device_callback_t device_modes[] =
 		.cli_commands              = cmd_thresholds,
 	},    
 	{//14 Single Counter                       
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&single_counter_alarms,
 		.on_scheduled_wakeup       =&single_counter_simple_uplink,
 		.on_hourly_alarm           =&single_counter_on_hour,
@@ -491,6 +507,7 @@ sensum_device_callback_t device_modes[] =
 		                             cmd_count_leak,
 	}, 	
 	{//15 SCL61D5 Water meter         
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&no_action,
 		.on_scheduled_wakeup       =&scl61d5_wakeup,
 		.on_hourly_alarm           =&no_action,
@@ -513,6 +530,7 @@ sensum_device_callback_t device_modes[] =
 		.cli_commands              = 0,
 	}, 
 	{//16 MultiDS18B20
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&ds18b20_mulit_on_each_wakeup,
 		.on_scheduled_wakeup       =&multi_ds18b20_onWakeup,
 		.on_hourly_alarm           =&no_action,
@@ -535,6 +553,7 @@ sensum_device_callback_t device_modes[] =
 		.cli_commands              = cmd_thresholds,
 	},
 	{//17 Three ADC
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&no_action,
 		.on_scheduled_wakeup       =&three_adc_send,
 		.on_hourly_alarm           =&no_action,
@@ -558,6 +577,7 @@ sensum_device_callback_t device_modes[] =
 	},
 	
 	{//18 OLD CO2                         
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&no_action,
 		.on_scheduled_wakeup       =&legacy_co2_uplink,
 		.on_hourly_alarm           =&CO2_hourly_interrupt,
@@ -581,6 +601,7 @@ sensum_device_callback_t device_modes[] =
 	},
 	
 	{//19 TEmperature Humidity Light                       
+		.on_time_service				=&no_action,
 		.on_each_wakeup            =&no_action,
 		.on_scheduled_wakeup       =&light_sensor_uplink,
 		.on_hourly_alarm           =&no_action,
@@ -602,6 +623,29 @@ sensum_device_callback_t device_modes[] =
 		.lora_class_c              =false,
 		.cli_commands              = 0,
 	},  
+	{//20  BME680
+		.on_time_service				=&no_action,
+		.on_each_wakeup            =&no_action,
+		.on_scheduled_wakeup       =&bme680_onWakeup,
+		.on_hourly_alarm           =&service_bme680,
+		.on_hourly_alarm_interrupt =&no_action,
+		.on_count_wakeup           =&no_action,
+		.on_alarm                  =&no_action,
+		.init                      =&bme680_bsec_init,
+		.test_peripheral           =&no_test,//as it is not requred
+		.send_data                 =&bme680_uplink,
+		.on_downlink               =&bme680_onDownlink,
+		.save_config               =&bme680_save_config,
+		.save_data                 =&no_action,
+		.load_config               =&bme680_load_config,
+		.load_data                 =&no_action,
+		.cli_set_thresholds        =&bme680_cli_threshold,
+		.cli_device_specific       =&co2_cli_device,	// for CO2 sensor used on device
+		.mode_name                 ="BME680",
+		.legacy_counter            =legacy_counters_enabled,
+		.lora_class_c              =false,
+		.cli_commands              = cmd_thresholds,
+	},    
 };
 
 sensum_device_callback_t device = {0};
@@ -806,7 +850,7 @@ static void Sleep(uint32_t wakeup_time_ms)
 	}
 	
 	previous_wakeup_time_ms = wakeup_time_ms;
-	alarm_printf("Current Time:%u\r\n", HW_RTC_GetTimerValue());
+	alarm_printf("a) Current Time:%u\r\n", HW_RTC_GetTimerValue());
 	await_uart_tx();
 	//set this to 0, to ensure that we do not wake immediatly.
 
@@ -897,7 +941,7 @@ static void Sleep(uint32_t wakeup_time_ms)
 	wake__flag = 0;
 	alarm_printf("Time at wake:%d\r\n", HW_RTC_GetTimerValue());
 	//now print out the RTC time to confirm
-	alarm_printf("Current Time:%u\r\n", HW_RTC_GetTimerValue());
+	alarm_printf("b) Current Time:%u\r\n", HW_RTC_GetTimerValue());
 	await_uart_tx();
 }
 
@@ -1117,7 +1161,7 @@ static void init()
 		
 
 		#ifdef TIME_NEAR_OVERFLOW_AT_BOOT
-		{
+		/* {
 			if(!watchdog_was_reset_source)
 			{	
 				//after initialising the RTC, set it to a date/time that will cause a uint32 overflow on the MS range
@@ -1140,7 +1184,7 @@ static void init()
 				Debug_printf("Current Time:%u\r\n", HW_RTC_GetTimerValue());
 				await_uart_tx();
 			}
-		}
+		} */
 		#endif
 		await_uart_tx();
 		//load configuration and data before entering CLI, so the values can be observed.

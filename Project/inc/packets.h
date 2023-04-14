@@ -76,8 +76,14 @@ typedef enum
 {
 	downlink_type_co2_abc   = 1,
 	downlink_type_co2_calib = 2,
+	downlink_type_co2_factory_calib = 3,
 }co2_downlink_e;
-
+/* 
+typedef enum
+{
+	downlink_type_bme680_generic	= 1,
+}bme680_downlink_e;
+ */
 typedef enum
 {
 	downlink_type_ds18b20_temperature = 1,
@@ -612,6 +618,35 @@ typedef union
 	}PACKED members;
 }lora_twoIO_t;
 STATIC_ASSERT((sizeof(MEMBER(lora_twoIO_t,members)) == TWO_IO_SIZE));
+
+/****************************************************************************/
+
+#define BME680_SIZE 12
+typedef union
+{
+	uint8_t payload[BME680_SIZE];
+	struct
+	{
+		int32_t
+			Temperature2: 11,
+			Temperature1: 11,
+			Reserved		: 2;
+		uint32_t
+			Humidity2	: 7,
+			Humidity1	: 7,
+			Light			: 8,
+			IAQ			: 9,
+			Reserved1	: 1;
+		uint16_t	Pressure;
+		uint16_t 
+			CO2			:14,
+			IAQ_Accuracy: 2;
+		uint8_t
+		   sys_voltage	:4,
+			pkt_type		:4;
+	}PACKED members;
+}bme680_payload_t;
+STATIC_ASSERT((sizeof(MEMBER(bme680_payload_t,members)) == BME680_SIZE));
  
 /********************************************************************
  *DOWNLINKS                                                         *
@@ -646,6 +681,40 @@ typedef union
 STATIC_ASSERT((sizeof(MEMBER(generic_downlink_packet_t,members)) == GENERIC_CONFIG_DOWNLINK_SIZE));
 STATIC_ASSERT((GENERIC_CONFIG_DOWNLINK_SIZE <= MAX_RX_DATA));
 
+/****************************************************************************/
+/* 
+#define BME680_DOWNLINK_SIZE 8
+typedef union
+{
+	struct
+	{
+		uint64_t
+			humidity_upper_enabled   	:1,
+			humidity_lower_enabled   	:1,
+			temperature_upper_enabled	:1,
+			temperature_lower_enabled	:1,
+			light_upper_enabled			:1,
+			light_lower_enabled			:1,
+			pressure_upper_enabled		:1,
+			pressure_lower_enabled		:1,
+			co2_upper_enabled				:1,
+			co2_lower_enabled				:1,
+			iaq_upper_enabled				:1,
+			iaq_lower_enabled				:1,
+			transmit_period :8 ,
+			update_time     :1 ,
+			second          :6 ,
+			minute          :6 ,
+			hour            :5 ,
+			rejoin_period   :10,
+			wakeup_period   :12,
+			downlink_type   :4 ;
+	}PACKED members;
+	uint8_t payload[BME680_DOWNLINK_SIZE];
+}bme680_downlink_packet_t;
+STATIC_ASSERT((sizeof(MEMBER(bme680_downlink_packet_t,members)) == BME680_DOWNLINK_SIZE));
+STATIC_ASSERT((BME680_DOWNLINK_SIZE <= MAX_RX_DATA));
+ */
 /****************************************************************************/
 
 #define COUNTER_DOWNLINK_SIZE 8
