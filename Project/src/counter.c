@@ -676,7 +676,7 @@ void three_counter_uplink()
 	count_payload.members.sys_voltage = fourBit_battery_calculation();
 	count_payload.members.pkt_type    = packet_type_data;
 	
-	// Uplink(count_payload.payload, THREE_COUNT_SIZE);
+	Uplink(count_payload.payload, THREE_COUNT_SIZE);
 }
 
 

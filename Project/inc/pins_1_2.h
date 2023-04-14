@@ -22,17 +22,17 @@
  ********************************************************************/
  
 #define PER_SUPPLY_ENABLE_PORT	GPIOB
-#define PER_SUPPLY_ENABLE_PIN	   LL_GPIO_PIN_5
+#define PER_SUPPLY_ENABLE_PIN	GPIO_PIN_5
 
 #define COUNT1_PORT      		GPIOA
-#define COUNT1_PIN       		LL_GPIO_PIN_8
-#define COUNT1_ADC_CH         LL_ADC_CHANNEL_0
+#define COUNT1_PIN       		GPIO_PIN_0
+#define COUNT1_ADC_CH           LL_ADC_CHANNEL_0
 
 #define PROBE_BLEED_PORT 		GPIOA
-#define PROBE_BLEED_PIN  		LL_GPIO_PIN_0
+#define PROBE_BLEED_PIN  		GPIO_PIN_0
 
-#define COUNT2_PORT  		   GPIOA
-#define COUNT2_PIN   		   LL_GPIO_PIN_3
+#define COUNT2_PORT  		GPIOB
+#define COUNT2_PIN   		GPIO_PIN_12
 //Count 2 pin on HW 1.1 doesn't have any ADC associated with it
 #define COUNT2_ADC_CH       LL_ADC_CHANNEL_VREFINT
 		
@@ -40,48 +40,48 @@
 #define COUNT1_DIR_PIN   		COUNT2_PIN
 		
 #define STM_ADC_IN_PORT  		GPIOA
-#define STM_ADC_IN_PIN   		LL_GPIO_PIN_5
+#define STM_ADC_IN_PIN   		GPIO_PIN_5
 #define STM_ADC_IN_CH    		LL_ADC_CHANNEL_5
 		
-#define COUNT3_PORT           GPIOA
-#define COUNT3_PIN            LL_GPIO_PIN_2
+#define COUNT3_PORT      		STM_ADC_IN_PORT
+#define COUNT3_PIN       		STM_ADC_IN_PIN
 
 #define ADC1_PORT               GPIOA
-#define ADC1_PIN                LL_GPIO_PIN_0
+#define ADC1_PIN                GPIO_PIN_0
 #define ADC1_CH                 LL_ADC_CHANNEL_0
                                 
 #define ADC2_PORT               GPIOA
-#define ADC2_PIN                LL_GPIO_PIN_3
+#define ADC2_PIN                GPIO_PIN_3
 #define ADC2_CH                 LL_ADC_CHANNEL_3
                                 
 #define ADC3_PORT               GPIOA
-#define ADC3_PIN                LL_GPIO_PIN_5
+#define ADC3_PIN                GPIO_PIN_5
 #define ADC3_CH                 LL_ADC_CHANNEL_5
 
 #define MODBUS_ADC_PORT         GPIOA
-#define MODBUS_ADC_PIN          LL_GPIO_PIN_5
+#define MODBUS_ADC_PIN          GPIO_PIN_5
 #define MODBUS_ADC_CH           LL_ADC_CHANNEL_5
 		
 #define TAMPER_PORT      		STM_ADC_IN_PORT
 #define TAMPER_PIN       		STM_ADC_IN_PIN
 		
 #define DEBUG_TX_PORT    		GPIOA
-#define DEBUG_TX_PIN     		LL_GPIO_PIN_9
+#define DEBUG_TX_PIN     		GPIO_PIN_9
 		
 #define DEBUG_RX_PORT    		GPIOA
-#define DEBUG_RX_PIN     		LL_GPIO_PIN_10
+#define DEBUG_RX_PIN     		GPIO_PIN_10
 		
 #define MODBUS_TX_PORT   		GPIOA
-#define MODBUS_TX_PIN    		LL_GPIO_PIN_2
+#define MODBUS_TX_PIN    		GPIO_PIN_2
 	
 #define MODBUS_RX_PORT   		GPIOA
-#define MODBUS_RX_PIN    		LL_GPIO_PIN_3
+#define MODBUS_RX_PIN    		GPIO_PIN_3
 		
 #define CO2_EN_PORT      		GPIOA
-#define CO2_EN_PIN       		LL_GPIO_PIN_2
+#define CO2_EN_PIN       		GPIO_PIN_2
 		
 #define CO2_nRDY_PORT    		GPIOA
-#define CO2_nRDY_PIN     		LL_GPIO_PIN_3
+#define CO2_nRDY_PIN     		GPIO_PIN_3
 		
 #define MODBUS_M1_PORT   		GPIOB
 #define MODBUS_M1_PIN    		LL_GPIO_PIN_7
@@ -90,13 +90,13 @@
 #define MODBUS_M2_PIN    		LL_GPIO_PIN_2
 		
 #define I2C_CLK_PORT     		GPIOB
-#define I2C_CLK_PIN      		LL_GPIO_PIN_8
+#define I2C_CLK_PIN      		GPIO_PIN_8
 		
 #define I2C_DAT_PORT     		GPIOB
-#define I2C_DAT_PIN      		LL_GPIO_PIN_9
+#define I2C_DAT_PIN      		GPIO_PIN_9
 		
-#define PROBE_POWER_PORT 		GPIOB
-#define PROBE_POWER_PIN  		LL_GPIO_PIN_5
+#define PROBE_POWER_PORT 		GPIOA
+#define PROBE_POWER_PIN  		GPIO_PIN_8
 
 #define LED_GREEN_PORT   		GPIOH
 #define LED_GREEN_PIN    		LL_GPIO_PIN_1
@@ -104,8 +104,8 @@
 #define LED_ORANGE_PORT  		GPIOA
 #define LED_ORANGE_PIN   		LL_GPIO_PIN_11
 
-#define LED_RED_PORT     		GPIOB
-#define LED_RED_PIN      		LL_GPIO_PIN_12
+#define LED_RED_PORT     		GPIOA
+#define LED_RED_PIN      		LL_GPIO_PIN_4
 
 #define SPI_MOSI_PORT           GPIOB
 #define SPI_MOSI_PIN            LL_GPIO_PIN_15
@@ -139,5 +139,4 @@
 		
 #define DEBUG_3_PIN      		LED_GREEN_PIN
 #define DEBUG_3_PORT     		LED_GREEN_PORT
-
 #endif //PINS_1_2_HEADER		
