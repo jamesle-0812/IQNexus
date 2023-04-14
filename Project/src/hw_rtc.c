@@ -67,7 +67,7 @@ Maintainer: Miguel Luis and Gregory Cristian
 #include "global.h"
 #include "lora_sensum.h"
 #include "debug_uart.h"
-
+#include "lc_sensor.h"
 /* Private typedef -----------------------------------------------------------*/
 
 /**
@@ -406,10 +406,31 @@ void HW_RTC_StopAlarm(void)
 
 void HW_RTC_IrqHandler(void)
 {
-  HW_RTC_AlarmIRQHandler();
+  if (READ_BIT(RTC->ISR, RTC_ISR_WUTF))
+  {
+    /* enable low power at irq*/
+    // LPM_SetStopMode(LPM_RTC_Id , LPM_Enable );
+    CLEAR_BIT(RTC->ISR, RTC_ISR_WUTF);
+    LL_EXTI_ClearFlag_0_31(LL_EXTI_LINE_20);
+
+    /* doing something here */
+    // LED_GREEN_PORT->ODR ^= LED_GREEN_PIN;
+    lc_sensor_measurement();
+
+    // MODIFY_REG(PWR->CR, PWR_CR_PDDS, PWR_CR_LPSDSR | PWR_CR_CWUF);
+    // CLEAR_BIT(RCC->CFGR, RCC_CFGR_STOPWUCK);
+    SET_BIT(SCB->SCR, ((uint32_t)SCB_SCR_SLEEPDEEP_Msk));
+    /* This is ensured for any instruction come before it are completed */
+    __DSB();
+  }
+  else
+  {
+    HW_RTC_AlarmIRQHandler();
+    CLEAR_BIT(SCB->SCR, ((uint32_t)SCB_SCR_SLEEPONEXIT_Msk));
+    __DSB();  // Data Synchronization Barrier. Ensures that all memory
+              // accesses are completed before next instruction is executed.
+  }
 }
-
-
 
 void HW_RTC_StartHourlyAlarm()
 {

@@ -89,7 +89,7 @@ Maintainer: Miguel Luis, Gregory Cristian and Wael Guibene
 #include "conf_bits.h"
 
 #include "LoRaMac.h"
-
+#include "lc_sensor.h"
 #include "timeServer.h"
 
 #include "at.h"
@@ -601,6 +601,29 @@ sensum_device_callback_t device_modes[] =
 		.legacy_counter            =legacy_counters_enabled,
 		.lora_class_c              =false,
 		.cli_commands              = 0,
+	},
+
+	{//20 LC Sensor
+		.on_each_wakeup            =&no_action,
+		.on_scheduled_wakeup       =&lc_sensor_uplink,
+		.on_hourly_alarm           =&no_action,
+		.on_hourly_alarm_interrupt =&no_action,
+		.on_count_wakeup           =&no_action,
+		.on_alarm                  =&no_action,
+		.init                      =&lc_sensor_init,
+		.test_peripheral           =&no_test,
+		.send_data                 =&lc_sensor_uplink,
+		.on_downlink               =&no_downlink_action,
+		.save_config               =&no_action,
+		.save_data                 =&no_action,
+		.load_config               =&no_action,
+		.load_data                 =&no_action,
+		.cli_set_thresholds        =&no_cli,
+		.cli_device_specific       =&no_cli,
+		.mode_name                 ="LC sensor",
+		.legacy_counter            =legacy_counters_enabled,
+		.lora_class_c              =false,
+		.cli_commands              = 0,
 	},  
 };
 
@@ -867,13 +890,14 @@ static void Sleep(uint32_t wakeup_time_ms)
 		// LL_GPIO_SetPinMode(PER_SUPPLY_ENABLE_PORT, PER_SUPPLY_ENABLE_PIN, LL_GPIO_MODE_ANALOG);
 		//we are going to disable the interrupts here, before the check for the wake flag
 		//this should help prevent race conditions.
-		DISABLE_IRQ();
+		// DISABLE_IRQ(); // causes interrupts to be disabled by setting PRIMASK.
 		//check RTC last, if we are awoken by the RTC, then exit the sleep loop.
 		//This should be redundant, because the check_timeout should fail if the RTC alarm has gone off.
 		if(wake__flag)
 		{
 			//ensure to re-enable the IRQ here
-			ENABLE_IRQ();
+			// ENABLE_IRQ();
+			// __ISB();	// needed if there is a need to recognize a pending interrupt request immediately
 			alarm_printf("wakeup_time_ms via Alarm\r\n");
 			break;
 		}
@@ -887,7 +911,13 @@ static void Sleep(uint32_t wakeup_time_ms)
 		LPM_ExitStopMode();
 		/* Enable GPIOs clock */
 		//also re-enable the IRQ after Interrupt wake.
-		ENABLE_IRQ();
+		// ENABLE_IRQ(); // cause interrupts to be enabled by clearing PRIMASK
+		// __ISB();	// needed if there is a need to recognize a pending interrupt request immediately
+		/* 
+		 * this is where the IRQ is actually executed after the wake-up and restore clock signals
+		 * The problem is SLEEP-ON-EXIT is enabled inside the RTC_Irq, leading to the MCU goes to sleep
+		 * without the process of disabling unused parts. The result is the MCU goes to sleep with high current consumption.
+		 */
 		delay_timeout_ms(10);
 		Debug_init();
 		alarm_printf("waking up\r\n");
@@ -1276,7 +1306,11 @@ static void init()
 	//alert that we are entering sleep
 	Debug_printf("Sleep\r\n\r\n");
 	//sleep for 30 seconds, and then send the first data packet
-	Sleep(30000);
+	#ifdef DISABLE_FIRMWARE_READOUT
+		Sleep(30000);
+	#else
+		Sleep(3000);
+	#endif
 }
 
 
