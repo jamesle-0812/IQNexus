@@ -67,8 +67,8 @@ uint32_t timer_clk = 0;
  *	@brief	Initialize GPIO for LC sensor
  * @param	None
  * @return	None
- * @note		LC1 	-> PB7	->	COMP2_INP (Additional functions)
- * 			LC2 	-> PA3	-> COMP2_INP (Additional functions)
+ * @note	LC1 	-> PB7	->	COMP2_INP (Additional functions)
+ * 			LC2 	-> PA3	-> 	COMP2_INP (Additional functions)
  */
 void LC_GPIO_Init(void){
 
@@ -97,7 +97,7 @@ void LC_GPIO_Init(void){
  *	@brief	Initialize voltage references of Vmid & Vcomp
  * @param	None
  * @return	None
- * @note		Vmid 	-> PA5
+ * @note	Vmid 	-> PA5
  * 			Vcomp	-> COMP2_INM (PA4, internal)
  */
 void LC_DAC_Init(void){
@@ -123,7 +123,7 @@ void LC_DAC_Init(void){
 
 /*!
  *	@brief	Initialize LPTM1 settings to accquires pulses from LC sensor
- *				The LPTIM will generate a pulse every time it triggered by COMP2 output
+ *			The LPTIM will generate a pulse every time it triggered by COMP2 output
  *	@param	None
  * @return	None 
  */
@@ -131,16 +131,16 @@ void LC_LPTIM1_Init(void){
 
 	// LL_RCC_SetLPTIMClockSource(LL_RCC_LPTIM1_CLKSOURCE_LSI);	// Unnecessary
 	LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_LPTIM1); 		// Enable LPTIM1 clock
-	/* 
-	LL_LPTIM_InitTypeDef LPTIM_InitStruct;
+	
+	/* LL_LPTIM_InitTypeDef LPTIM_InitStruct;
 
 	LPTIM_InitStruct.ClockSource	= LL_LPTIM_CLK_SOURCE_EXTERNAL;
 	LPTIM_InitStruct.Polarity		= LL_LPTIM_OUTPUT_POLARITY_REGULAR;
 	LPTIM_InitStruct.Prescaler		= LL_LPTIM_PRESCALER_DIV1;
 	//LPTIM_InitStruct.Waveform		= LL_LPTIM_OUTPUT_WAVEFORM_SETONCE;
 
-	LL_LPTIM_Init(LPTIM1, &LPTIM_InitStruct);
-	 */
+	LL_LPTIM_Init(LPTIM1, &LPTIM_InitStruct); */
+	
 
 	/* Use External clock source for LPTIM1, not internal clocks */
 	LL_LPTIM_SetClockSource(LPTIM1, LL_LPTIM_CLK_SOURCE_EXTERNAL);
@@ -173,17 +173,17 @@ void LC_LPTIM1_Init(void){
 void LC_COMP2_Init(void){
 
 	LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_SYSCFG);	// Enable COMP clock
-	/* 
+	
 	LL_COMP_InitTypeDef COMP2_InitStruct;
 
-	COMP2_InitStruct.InputMinus 		= LL_COMP_INPUT_MINUS_DAC1_CH1;
+	/* COMP2_InitStruct.InputMinus 		= LL_COMP_INPUT_MINUS_DAC1_CH1;
 	COMP2_InitStruct.InputPlus			= LL_COMP_INPUT_PLUS_IO5;	// for LC1
 	// COMP2_InitStruct.InputPlus		= LL_COMP_INPUT_PLUS_IO1;	// for LC2
 	COMP2_InitStruct.OutputPolarity 	= LL_COMP_OUTPUTPOL_NONINVERTED;
 	COMP2_InitStruct.PowerMode			= LL_COMP_POWERMODE_MEDIUMSPEED;
 
-	LL_COMP_Init(COMP2, &COMP2_InitStruct);
-	 */
+	LL_COMP_Init(COMP2, &COMP2_InitStruct); */
+	
 	LL_COMP_SetPowerMode(COMP2, LL_COMP_POWERMODE_MEDIUMSPEED);
 	LL_COMP_SetOutputPolarity(COMP2, LL_COMP_OUTPUTPOL_NONINVERTED);
 	LL_COMP_ConfigInputs(COMP2, LL_COMP_INPUT_MINUS_DAC1_CH2, LL_COMP_INPUT_PLUS_IO5);
@@ -204,10 +204,10 @@ void LC_COMP2_Init(void){
 #endif
 }
 
-void LC_TIM7_Init(void){
+/* void LC_TIM7_Init(void){
 
 	LL_APB1_GRP1_EnableClock(LL_APB1_GRP1_PERIPH_TIM7);
-	/* AHB is not prescaled */
+	// AHB is not prescaled
 	timer_clk = (LL_RCC_GetAPB1Prescaler() >> RCC_CFGR_PPRE1_Pos);
 	if ((timer_clk >> 2) != 0){
 		timer_clk = (timer_clk & 0x3) + 1;
@@ -218,7 +218,7 @@ void LC_TIM7_Init(void){
 	LL_TIM_SetPrescaler(TIM7, __LL_TIM_CALC_PSC(timer_clk, 1000000));
 	//LL_TIM_SetAutoReload(TIM7, 1000);
 
-	/* Automatically disable the timer at the next update event UEV */
+	// Automatically disable the timer at the next update event UEV
 	LL_TIM_SetOnePulseMode(TIM7, LL_TIM_ONEPULSEMODE_SINGLE);
 
 	LL_TIM_GenerateEvent_UPDATE(TIM7);
@@ -228,7 +228,7 @@ void LC_TIM7_Init(void){
 
 	NVIC_ClearPendingIRQ(TIM7_IRQn);
 	NVIC_EnableIRQ(TIM7_IRQn);
-}
+} */
 
 void LC_RTC_WakeUpTimer_Init(void){
 
@@ -240,15 +240,15 @@ void LC_RTC_WakeUpTimer_Init(void){
 	while(!LL_RTC_IsActiveFlag_WUTW(RTC));	// Wait until Wakeup timer configuration update allowed
 
 	#ifndef	DISABLE_LC_SENSOR_DEBUG
-	// Execute interrupt every 7s
+	// Execute interrupt every 31.25ms
 	LL_RTC_WAKEUP_SetClock(RTC, /* LL_RTC_WAKEUPCLOCK_DIV_16 */ LL_RTC_WAKEUPCLOCK_DIV_2);
 
 	LL_RTC_WAKEUP_SetAutoReload(RTC, /* 14336 */ 512);
 	#else
 	/*********************************************************************
 	 * RTC using LSE oscillator (32.768kHz), target 32Hz output (31.25ms)*
-	 * Wakeup Timer Base = 2 / 32.768kHz = 61.03515625 us						*
-	 * Auto Reload = 31.25ms / 61.03515625 us = 512								*
+	 * Wakeup Timer Base = 2 / 32.768kHz = 61.03515625 us				 *
+	 * Auto Reload = 31.25ms / 61.03515625 us = 512						 *
 	 *********************************************************************/
 	LL_RTC_WAKEUP_SetClock(RTC, LL_RTC_WAKEUPCLOCK_DIV_2);
 
@@ -302,19 +302,19 @@ void LC_DAC_Enable(uint32_t mask){
 	/* Note: If system core clock frequency is below 200kHz, wait time          */
 	/*       is only a few CPU processing cycles.                               */
 	// delay_us(LL_DAC_DELAY_STARTUP_VOLTAGE_SETTLING_US);	// not working	
-	/* 
-	wait_loop_index = ((LL_DAC_DELAY_STARTUP_VOLTAGE_SETTLING_US * (SystemCoreClock / (100000 * 2))) / 10);
+	
+	/* wait_loop_index = ((LL_DAC_DELAY_STARTUP_VOLTAGE_SETTLING_US * (SystemCoreClock / (100000 * 2))) / 10);
 	while (wait_loop_index != 0)
 	{
 		wait_loop_index--;
-	}
-	 */
+	} */
+	
 	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();
 	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();
 	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();
 }
-/* 
-void delay_us_TIM7(uint16_t us){
+
+/* void delay_us_TIM7(uint16_t us){
 
 	// T = (TIM_PSC + 1)(TIM_ARR + 1)/TIM_CLK
 	WRITE_REG(TIM7->ARR, __LL_TIM_CALC_ARR(timer_clk, 3, (uint16_t)(1/((float)(us*1e-6)))));
@@ -330,12 +330,12 @@ void delay_us_TIM7(uint16_t us){
 	while (!READ_BIT(TIM7->SR, TIM_SR_UIF));
 	
 	// SET_BIT(RCC->CFGR, RCC_CFGR_HPRE_DIV1);// Go back to full speed
-}
+} */
 
-void TIM7_IRQHandler(){
+/* void TIM7_IRQHandler(){
 	CLEAR_BIT(TIM7->SR, TIM_SR_UIF);
-}
- */
+} */
+
 void lc_sensor_measurement(void){
 
 	reset_watchdog();
@@ -348,21 +348,33 @@ void lc_sensor_measurement(void){
 	LC_DAC_Enable(VCOMP_DAC_CHANNEL);
 
 	/* Enable Comparator 2 */
-	//LL_COMP_Enable(COMP2);
-	SET_BIT(COMP2->CSR, COMP_CSR_COMP2EN);
-	/* Choose LC1 as input of COMP2 */
-	MODIFY_REG(COMP2->CSR, COMP_CSR_COMP2INPSEL, COMP_CSR_COMP2INPSEL_2);
+	LL_COMP_Enable(COMP2);
+	// SET_BIT(COMP2->CSR, COMP_CSR_COMP2EN);
 	
-	// counter_before = READ_REG(LPTIM1->CNT);	// reading counter before a measurement
+	/* Choose LC1 as input of COMP2 */
+	LL_COMP_SetInputPlus(COMP2, LL_COMP_INPUT_PLUS_IO5); 
+	// MODIFY_REG(COMP2->CSR, COMP_CSR_COMP2INPSEL, COMP_CSR_COMP2INPSEL_2);
+	
+	lc1.counter_before = LL_LPTIM_GetCounter(LPTIM1);	// reading counter before a measurement
 
 	/* switch to output pushpull to start oscillation */
-	MODIFY_REG(LC1_PORT->MODER, GPIO_MODER_MODE7, GPIO_MODER_MODE7_0);
+	LL_GPIO_SetPinMode(LC2_PORT, LC2_PIN, LL_GPIO_MODE_OUTPUT); 
+	// MODIFY_REG(LC1_PORT->MODER, GPIO_MODER_MODE7, GPIO_MODER_MODE7_0);
 
-	/* Minimum width of the excitation pulse, refer to section 2.4.1 of AN4636 */
-	// __DSB();// DSB instruction is one clock cycle. Need to do measurements to get an excitation of 2us
+	/* Minimum width of the excitation pulse, Need to do measurements to get an excitation of 2us */
+	__DSB();// DSB instruction is one clock cycle. 
 	
 	/* back to analog input */
-	SET_BIT(LC1_PORT->MODER, GPIO_MODER_MODE7_1);
+	LL_GPIO_SetPinMode(LC2_PORT, LC2_PIN, LL_GPIO_MODE_ANALOG); 
+	// SET_BIT(LC1_PORT->MODER, GPIO_MODER_MODE7_1);
+
+	// Wait for capture time
+	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();
+	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();
+	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();
+	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();
+
+	lc1.counter_after = LL_LPTIM_GetCounter(LPTIM1);	// get the pulses in the measurement
 	
 	LL_DAC_Disable(DAC, VMID_DAC_CHANNEL);
 	// CLEAR_BIT(DAC->CR, DAC_CR_EN1);
@@ -370,18 +382,10 @@ void lc_sensor_measurement(void){
 	/* DAC COMP threshold can be stopped very soon (internal S/H) */
 	LL_DAC_Disable(DAC, VCOMP_DAC_CHANNEL);
 	// CLEAR_BIT(DAC->CR, DAC_CR_EN2);
-
-	// /* Wait for capture time, refer to section 3.2.3 of AN4636 */
-	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();
-	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();
-	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();
-	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();	__DSB();
-
-	// counter_after = READ_REG(LPTIM1->CNT) - counter;	// get the pulses in the measurement
 	
 	/* Disable COMP2 */
-	// LL_COMP_Disable(COMP2);
-	CLEAR_BIT(COMP2->CSR, COMP_CSR_COMP2EN);
+	LL_COMP_Disable(COMP2);
+	// CLEAR_BIT(COMP2->CSR, COMP_CSR_COMP2EN);
 
 	/* LC2 measurement */
 	// CLEAR_BIT(COMP2->CSR, COMP_CSR_COMP2INPSEL); Choose LC2 as input of COMP2
@@ -390,7 +394,7 @@ void lc_sensor_measurement(void){
 	// __DSB();
 	// SET_BIT(LC2_PORT->MODER, GPIO_MODER_MODE3_1);
 
-	/* 
+	
 	uint8_t pulses_read;
 	if (lc1.counter_after < lc1.counter_before)
 	{
@@ -405,14 +409,14 @@ void lc_sensor_measurement(void){
 	} else {
 		lc1.status = RESET;
 	}
-#elif		ITRON_WATER_METER
+#elif	ITRON_WATER_METER
 	if (pulses_read <= METAL_DETECTED_ITRON){
 		lc1.status = SET;
 	} else {
 		lc1.status = RESET;
 	}
 #endif
-	 */
+	
 }
 
 void lc_sensor_uplink( void )
@@ -428,12 +432,12 @@ void lc_sensor_uplink( void )
 		test = false;
 	}
 
-	/* 
-	payload.members.sys_voltage = fourBit_battery_calculation();
+	
+	/* payload.members.sys_voltage = fourBit_battery_calculation();
 	payload.members.pkt_type    = packet_type_data;
 	
-	Uplink(payload.payload, LC_SENSOR_SIZE);
-	 */
+	Uplink(payload.payload, LC_SENSOR_SIZE); */
+	
 }
 
 void lc_sensor_onWakeup( void )
